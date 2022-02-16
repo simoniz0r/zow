@@ -171,10 +171,18 @@ switch -exact -- [lindex $argv 0] {
     ch -
     changes { ;# use rpm to show changes file
         bash "rpm -q --changes [lrange $argv 1 end]"
+        puts $::stdout
+        if {$::err != 0 && [string last {child process exited abnormally} $::stderr] == -1} {
+            puts stderr $::stderr
+        }
     }
     lf -
     list-files { ;# use rpm to list files in package
         bash "rpm -q --filesbypkg [lrange $argv 1 end]"
+        puts $::stdout
+        if {$::err != 0 && [string last {child process exited abnormally} $::stderr] == -1} {
+            puts stderr $::stderr
+        }
     }
     se -
     search { ;# package search
