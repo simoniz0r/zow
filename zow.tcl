@@ -168,6 +168,14 @@ proc zypper_search {package} {
 
 # detect input
 switch -exact -- [lindex $argv 0] {
+    ch -
+    changes { ;# use rpm to show changes file
+        bash "rpm -q --changes [lrange $argv 1 end]"
+    }
+    lf -
+    list-files { ;# use rpm to list files in package
+        bash "rpm -q --filesbypkg [lrange $argv 1 end]"
+    }
     se -
     search { ;# package search
         zypper_search "[lrange $argv 1 end]"
