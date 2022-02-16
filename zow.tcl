@@ -169,7 +169,7 @@ proc zypper_search_local {package} {
         }
         # output result, formatting depends on if summary attribute exists in result
         if {[catch {$result getAttribute summary}] == 0} {
-            puts "[color $::prompt [color $nameColor [$result getAttribute name]]] ([$result getAttribute kind]) [color $statusColor [$result getAttribute status]]"
+            puts "[color $::prompt [color $nameColor [$result getAttribute name]]] | [$result getAttribute kind] | [color $statusColor [$result getAttribute status]]"
             puts "    [$result getAttribute summary]\n"
         } else {
             puts "[color $::prompt [color $nameColor [$result getAttribute name]]] |\
