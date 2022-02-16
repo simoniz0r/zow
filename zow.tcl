@@ -2,7 +2,7 @@
 # Name: zow
 # Author: Syretia
 # License: MIT
-# Description: zypper OBS wrapper that adds OBS  package search and install
+# Description: zypper OBS wrapper that adds OBS package search and install
 # Dependencies: tcllib, tdom, tls
 
 package require rest
@@ -113,6 +113,7 @@ proc zypper {arguments} {
         puts stderr $::stderr
     }
 }
+
 # proc that handles package search through zypper
 proc zypper_search {package} {
     # get colors for output
@@ -151,7 +152,12 @@ proc zypper_search {package} {
             puts "[color $::prompt [color $nameColor [$result getAttribute name]]] ([$result getAttribute kind]) [color $statusColor [$result getAttribute status]]"
             puts "    [$result getAttribute summary]\n"
         } else {
-            puts "[color $::prompt [color $nameColor [$result getAttribute name]]] | [color $::change [$result getAttribute repository]] | [$result getAttribute edition] | [$result getAttribute arch] | [$result getAttribute kind] | [color $statusColor [$result getAttribute status]]\n"
+            puts "[color $::prompt [color $nameColor [$result getAttribute name]]] |\
+            [color $::change [$result getAttribute repository]] |\
+            [$result getAttribute edition] |\
+            [$result getAttribute arch] |\
+            [$result getAttribute kind] |\
+            [color $statusColor [$result getAttribute status]]\n"
         }
     }
 }
@@ -172,5 +178,6 @@ switch -exact -- [lindex $argv 0] {
         zypper "$argv"
     }
 }
+
 # exit with exit code from zypper
 exit $::err
