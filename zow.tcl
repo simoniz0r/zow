@@ -118,8 +118,24 @@ proc zypper {arguments} {
     }
 }
 
+# proc that decides which searches to run
+proc zypper_search {repos package} {
+    switch -exact -- $repos {
+        all { ;# both OBS and local repos
+            zypper_search_local "$package"
+            zypper_search_obs "search" "$package"
+        }
+        obs { ;# only OBS repos
+            zypper_search_obs "search" "$package"
+        }
+        local { ;# only local repos
+            zypper_search_local "$package"
+        }
+    }
+}
+
 # proc that handles package search through zypper
-proc zypper_search {package} {
+proc zypper_search_local {package} {
     # get colors for output
     color_config {/etc/zypp/zypper.conf}
     # run zypper search
@@ -184,9 +200,17 @@ switch -exact -- [lindex $argv 0] {
             puts stderr $::stderr
         }
     }
+    lse -
+    local-search { ;# package search with only local repos
+        zypper_search "local" "[lrange $argv 1 end]"
+    }
+    ose -
+    obs-search { ;# OBS package search only
+        zypper_search "obs" "[lrange $argv 1 end]"
+    }
     se -
-    search { ;# package search
-        zypper_search "[lrange $argv 1 end]"
+    search { ;# package search both OBS and local repos
+        zypper_search "all" "[lrange $argv 1 end]"
     }
     if -
     info -
