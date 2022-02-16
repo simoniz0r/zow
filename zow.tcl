@@ -12,6 +12,9 @@ package require cmdline
 # setup https
 http::register https 443 ::tls::socket
 
+# set version
+set version "0.1.00"
+
 # proc that uses tput to set colors
 proc color {foreground text} {
     switch -glob -- $foreground {
@@ -19,6 +22,7 @@ proc color {foreground text} {
         default {return [exec tput setaf $foreground]$text[exec tput sgr0]}
     }
 }
+
 # proc that parses named colors into numbers
 proc color_parse {color} {
     switch -exact $color {
@@ -36,6 +40,7 @@ proc color_parse {color} {
         default {return 7}
     }
 }
+
 # proc that gets color config
 proc color_config {path} {
     # set default colors
@@ -67,7 +72,6 @@ proc color_config {path} {
         }
     }
 }
-
 
 # proc that runs commands using bash
 proc bash {command} {
