@@ -73,6 +73,27 @@ proc color_config {path} {
     }
 }
 
+# proc that separates short flags so cmdline can parse them
+proc flag_separator {arguments} {
+    # create args variable
+    set args {}
+    # loop on arguments
+    foreach arg $arguments {
+        # if arg does not start with -- and does start with -
+        if {[string first {--} $arg] == -1 && [string first {-} $arg] == 0} {
+            # loop on each character in arg split into list
+            foreach flag [lrange [split $arg {}] 1 end] {
+                # insert flag with - into args list
+                set args [linsert $args end "-$flag"]
+            }
+        } else {
+            # else just insert arg into args list
+            set args [linsert $args end $arg]
+        }
+    }
+    return $args
+}
+
 # proc that runs commands using bash
 proc bash {command} {
     # set default values
