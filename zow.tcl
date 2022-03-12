@@ -156,11 +156,11 @@ proc zypper_search {repos package} {
 }
 
 # proc that handles package search through zypper
-proc zypper_search_local {package} {
+proc zypper_search_local {arguments} {
     # get colors for output
     color_config {/etc/zypp/zypper.conf}
     # run zypper search
-    bash "zypper --no-refresh --xmlout search $package"
+    bash "zypper --no-refresh --xmlout search $arguments"
     # trim xml just in case
     set xml [string trim $::stdout]
     # use tdom to parse xml
@@ -201,6 +201,51 @@ proc zypper_search_local {package} {
             [color $statusColor [$result getAttribute status]]\n"
         }
     }
+}
+
+# proc that handles searching OBS repos
+proc zypper_search_obs {type arguments} {
+    # separate any short flags in arguments so cmdline can parse them
+    set args [flag_separator "$arguments"]
+    # create flags and usage for cmdline
+    set flags {
+        {s           "detailed output"}
+        {details     "detailed output"}
+        {x           "exact match"}
+        {match-exact "exact match"}
+    }
+    set usage {}
+    # parse flags using cmdline::getKnownOptions
+    set flags_parsed [cmdline::getKnownOptions args $flags $usage]
+    # check if --details or -s used
+    if {[dict get $flags_parsed details] == 1} {
+        set detailed [dict get $flags_parsed details]
+    } else {
+        set detailed [dict get $flags_parsed s]
+    }
+    #check if --match-exact or -x used
+    if {[dict get $flags_parsed match-exact] == 1} {
+        set exact [dict get $flags_parsed match-exact]
+    } else {
+        set exact [dict get $flags_parsed x]
+    }
+    # create packages variable
+    set packages {}
+    # loop through args and add anything that doesn't start with - to packages list
+    foreach arg $args {
+        if {[string first {-} $arg] == -1} {
+            set packages [linsert $packages end $arg]
+        }
+    }
+    # get openSUSE version from /etc/products.d/baseproduct
+    if {[catch {set baseproduct_id [open /etc/products.d/baseproduct]}] != 0} {
+        puts [color $::msgError "Error opening {/etc/products.d/baseproduct}"]
+        exit 1
+    }
+    set baseproduct [rest::format_tdom [read $baseproduct_id]]
+    set release [regsub -all {\s} [$baseproduct selectNodes {string(/product/summary)}] {_}]
+    # TODO: get OBS results using opi endpoint and output them
+    puts "OBS search unfinished :("
 }
 
 # detect input
