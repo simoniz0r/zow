@@ -282,38 +282,37 @@ proc zypper_search_obs {type arguments} {
                 return {}
             } else {
                 puts {No matching items found.}
-                set ::err 104
+                exit 104
             }
+        }
+        set ::err 0
+        # get machine architecture
+        set system_arch [exec uname -m]
+        # get list of binary results from xml
+        set raw_binary_list [$xml selectNodes {/collection/binary}]
+        # create binary_list
+        set binary_list {}
+        # filter irrelevant architectures out of raw_binary_list
+        foreach raw_binary $raw_binary_list {
+            set raw_arch [$raw_binary getAttribute arch]
+            if {$raw_arch == "noarch" || $raw_arch == $system_arch} {
+                set binary_list [linsert $binary_list end $raw_binary]
+            }
+        }
+        # output results based on $type
+        if {$type != "search"} {
+            return $binary_list
         } else {
-            set ::err 0
-            # get machine architecture
-            set system_arch [exec uname -m]
-            # get list of binary results from xml
-            set raw_binary_list [$xml selectNodes {/collection/binary}]
-            # create binary_list
-            set binary_list {}
-            # filter irrelevant architectures out of raw_binary_list
-            foreach raw_binary $raw_binary_list {
-                set raw_arch [$raw_binary getAttribute arch]
-                if {$raw_arch == "noarch" || $raw_arch == $system_arch} {
-                    set binary_list [linsert $binary_list end $raw_binary]
-                }
-            }
-            # output results based on $type
-            if {$type != "search"} {
-                return $binary_list
-            } else {
-                foreach binary $binary_list {
-                    puts "[color $::prompt [color $::highlight [$binary getAttribute name]]] |\
-                    [color $::change [$binary getAttribute project]] |\
-                    [$binary getAttribute version]-[$binary getAttribute release] |\
-                    [$binary getAttribute arch]"
-                    # only output OBS project link if $detailed is not 1
-                    if {$detailed == 1} {
-                        puts {}
-                    } else {
-                        puts "    https://build.opensuse.org/project/show/[$binary getAttribute project]\n"
-                    }
+            foreach binary $binary_list {
+                puts "[color $::prompt [color $::highlight [$binary getAttribute name]]] |\
+                [color $::change [$binary getAttribute project]] |\
+                [$binary getAttribute version]-[$binary getAttribute release] |\
+                [$binary getAttribute arch]"
+                # only output OBS project link if $detailed is not 1
+                if {$detailed == 1} {
+                    puts {}
+                } else {
+                    puts "    https://build.opensuse.org/project/show/[$binary getAttribute project]\n"
                 }
             }
         }
