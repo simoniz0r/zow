@@ -246,6 +246,10 @@ proc zypper_search_obs {type arguments} {
     set release [regsub -all {\s} [$baseproduct selectNodes {string(/product/summary)}] {%253A}]
     # set URL to opi proxy
     set opi_proxy {https://opi-proxy.opensuse.org/?obs_api_link=}
+    # output heading if $type is search
+    if {$type == "search"} {
+        puts "[color $::msgWarning "OBS search results:"]\n"
+    }
     # loop through $packages
     foreach package $packages {
         # set query based on if -x or --match-exact flag used
@@ -269,10 +273,6 @@ proc zypper_search_obs {type arguments} {
         # check how many matches
         set collection [$xml selectNodes {/collection}]
         set matches [$collection getAttribute {matches}]
-        # output heading if $type is search
-        if {$type == "search"} {
-            puts "[color $::msgWarning "OBS search results:"]\n"
-        }
         if {$matches == 0} {
             if {$type != "search"} {
                 return {}
