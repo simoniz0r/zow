@@ -80,7 +80,7 @@ proc flag_separator {arguments} {
     # loop on arguments
     foreach arg $arguments {
         # if arg does not start with -- and does start with -
-        if {[string first {--} $arg] == -1 && [string first {-} $arg] == 0} {
+        if {[string first {--} $arg] != 0 && [string first {-} $arg] == 0} {
             # loop on each character in arg split into list
             foreach flag [lrange [split $arg {}] 1 end] {
                 # insert flag with - into args list
@@ -141,6 +141,8 @@ proc zypper {arguments} {
 
 # proc that decides which searches to run
 proc zypper_search {repos package} {
+    # get colors for output
+    color_config {/etc/zypp/zypper.conf}
     switch -exact -- $repos {
         all { ;# both OBS and local repos
             zypper_search_local "$package"
@@ -157,16 +159,14 @@ proc zypper_search {repos package} {
 
 # proc that handles package search through zypper
 proc zypper_search_local {arguments} {
-    # get colors for output
-    color_config {/etc/zypp/zypper.conf}
     # run zypper search
     bash "zypper --no-refresh --xmlout search $arguments"
     # trim xml just in case
-    set xml [string trim $::stdout]
+    set zypper_results [string trim $::stdout]
     # use tdom to parse xml
-    set root [rest::format_tdom $xml]
+    set xml [rest::format_tdom $zypper_results]
     # get messages from xml
-    set msgs [$root selectNodes {/stream/message/text()}]
+    set msgs [$xml selectNodes {/stream/message/text()}]
     # output messages
     foreach msg $msgs {
         puts [$msg nodeValue]
@@ -174,7 +174,7 @@ proc zypper_search_local {arguments} {
     # blank line
     puts {}
     # get search results from xml
-    set results [$root selectNodes {/stream/search-result/solvable-list/solvable}]
+    set results [$xml selectNodes {/stream/search-result/solvable-list/solvable}]
     # output search results
     foreach result $results {
         # set colors based on status attribute
@@ -233,19 +233,82 @@ proc zypper_search_obs {type arguments} {
     set packages {}
     # loop through args and add anything that doesn't start with - to packages list
     foreach arg $args {
-        if {[string first {-} $arg] == -1} {
+        if {[string first {-} $arg] != 0} {
             set packages [linsert $packages end $arg]
         }
     }
     # get openSUSE version from /etc/products.d/baseproduct
     if {[catch {set baseproduct_id [open /etc/products.d/baseproduct]}] != 0} {
-        puts [color $::msgError "Error opening {/etc/products.d/baseproduct}"]
+        puts stderr [color $::msgError "Error opening {/etc/products.d/baseproduct}"]
         exit 1
     }
     set baseproduct [rest::format_tdom [read $baseproduct_id]]
-    set release [regsub -all {\s} [$baseproduct selectNodes {string(/product/summary)}] {_}]
-    # TODO: get OBS results using opi endpoint and output them
-    puts "OBS search unfinished :("
+    set release [regsub -all {\s} [$baseproduct selectNodes {string(/product/summary)}] {%253A}]
+    puts "[color $::msgWarning "OBS search results:"]\n"    
+    # set URL to opi proxy
+    set opi_proxy {https://opi-proxy.opensuse.org/?obs_api_link=}
+    # loop through $packages
+    foreach package $packages {
+        # set query based on if -x or --match-exact flag used
+        if {$exact == 1} {
+            set query "%2540name%253D%2527$package%2527"
+        } else {
+            set query "contains-ic%2528%2540name%252C%2B%2527$package%2527%2529"
+        }
+        # set obs_api_link containing $query and $release
+        set obs_api_link "https%3A%2F%2Fapi.opensuse.org%2Fsearch%2Fpublished%2Fbinary%2Fid%3Fmatch%3D$query%2Band%2Bpath%252Fproject%253D%2527$release%2527%26limit%3D0&obs_instance=openSUSE"
+        # set full_url to contain $opi_proxy and $obs_api_link
+        set full_url "$opi_proxy$obs_api_link"
+        # use rest to get results from $full_url
+        set obs_results [rest::get $full_url {}]
+        # use tdom to parse xml
+        set xml [rest::format_tdom $obs_results]
+        # check how many matches
+        set collection [$xml selectNodes {/collection}]
+        set matches [$collection getAttribute {matches}]
+        if {$matches == 0} {
+            if {$type != "search"} {
+                return {}
+            } else {
+                puts {No matching items found.}
+                set ::err 104
+            }
+        } else {
+            set ::err 0
+            # get machine architecture
+            set system_arch [exec uname -m]
+            # get list of binary results from xml
+            set raw_binary_list [$xml selectNodes {/collection/binary}]
+            # create binary_list
+            set binary_list {}
+            # filter irrelevant architectures out of raw_binary_list
+            foreach raw_binary $raw_binary_list {
+                set raw_arch [$raw_binary getAttribute arch]
+                if {$raw_arch == "noarch" || $raw_arch == $system_arch} {
+                    set binary_list [linsert $binary_list end $raw_binary]
+                }
+            }
+            # output results based on $type
+            if {$type != "search"} {
+                return $binary_list
+            } else {
+                foreach binary $binary_list {
+                    puts "[color $::highlight [$binary getAttribute name]] |\
+                    [color $::change [$binary getAttribute project]] |\
+                    [color $::change [$binary getAttribute repository]] |\
+                    [$binary getAttribute version]-[$binary getAttribute release] |\
+                    [$binary getAttribute arch] |\
+                    [$binary getAttribute type]"
+                    # only output OBS project link if $detailed is not 1
+                    if {$detailed == 1} {
+                        puts {}
+                    } else {
+                        puts "    https://build.opensuse.org/project/show/[$binary getAttribute project]\n"
+                    }
+                }
+            }
+        }
+    }
 }
 
 # detect input
