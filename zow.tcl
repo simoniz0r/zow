@@ -295,10 +295,8 @@ proc zypper_search_obs {type arguments} {
                 foreach binary $binary_list {
                     puts "[color $::highlight [$binary getAttribute name]] |\
                     [color $::change [$binary getAttribute project]] |\
-                    [color $::change [$binary getAttribute repository]] |\
                     [$binary getAttribute version]-[$binary getAttribute release] |\
-                    [$binary getAttribute arch] |\
-                    [$binary getAttribute type]"
+                    [$binary getAttribute arch]"
                     # only output OBS project link if $detailed is not 1
                     if {$detailed == 1} {
                         puts {}
