@@ -293,7 +293,7 @@ proc zypper_search_obs {type arguments} {
                 return $binary_list
             } else {
                 foreach binary $binary_list {
-                    puts "[color $::highlight [$binary getAttribute name]] |\
+                    puts "[color $::prompt [color $::highlight [$binary getAttribute name]]] |\
                     [color $::change [$binary getAttribute project]] |\
                     [$binary getAttribute version]-[$binary getAttribute release] |\
                     [$binary getAttribute arch]"
