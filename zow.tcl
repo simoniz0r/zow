@@ -259,7 +259,15 @@ proc zypper_search_obs {type arguments} {
         # set full_url to contain $opi_proxy and $obs_api_link
         set full_url "$opi_proxy$obs_api_link"
         # use rest to get results from $full_url
-        set obs_results [rest::get $full_url {}]
+        if {[catch {set obs_results [rest::get $full_url {}]}] != 0} {
+            # failed to get results from API
+            if {$type != "search"} {
+                return {}
+            } else {
+                puts "Failed to get search results from $full_url."
+                exit 104
+            }
+        }
         # use tdom to parse xml
         set xml [rest::format_tdom $obs_results]
         # check how many matches
