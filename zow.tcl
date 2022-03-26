@@ -13,7 +13,7 @@ package require cmdline
 http::register https 443 ::tls::socket
 
 # set version
-set version "0.1.00"
+set version "0.1.01"
 
 # proc that uses tput to set colors
 proc color {foreground text} {
