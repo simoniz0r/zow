@@ -10,10 +10,10 @@ package require tls
 package require cmdline
 
 # setup https
-http::register https 443 ::tls::socket
+http::register https 443 [list ::tls::socket -autoservername true]
 
 # set version
-set version "0.1.01"
+set version "0.1.02"
 
 # proc that uses tput to set colors
 proc color {foreground text} {
@@ -94,14 +94,14 @@ proc flag_separator {arguments} {
     return $args
 }
 
-# proc that runs commands using bash
-proc bash {command} {
+# proc that runs commands and captures stdout
+proc exec_cap {command} {
     # set default values
     set ::err 0
     set ::stderr {}
     set ::stdout {}
     # run command and catch any non-zero exit
-    if {[catch {exec bash -c "$command"} output] != 0} {
+    if {[catch {exec -keepnewline -- {*}$command} output] != 0} {
         global errorCode
         # ::err is exit code
         set ::err [lindex $errorCode end]
@@ -115,26 +115,42 @@ proc bash {command} {
     }
 }
 
+# proc that runs commands and sends stdout directly to terminal instead of capturing it
+proc exec_nocap {command} {
+    # set default values
+    set ::err 0
+    set ::stderr {}
+    chan configure stdout -buffering none
+    # run command and catch any non-zero exit
+    if {[catch {exec -keepnewline -- >@stdout {*}$command} output] != 0} {
+        global errorCode
+        # ::err is exit code
+        set ::err [lindex $errorCode end]
+        # ::stderr is output
+        set ::stderr $output
+    }
+}
+
 # proc that handles all generic zypper calls
 proc zypper {arguments} {
-    # run zypper piped to tee /dev/tty and exit with zypper's exit status
+    # run zypper through exec_nocap proc
     # check if colors should be used
     color_config {/etc/zypp/zypper.conf}
     if {$::useColors == "false"} {
-        bash "zypper $arguments | tee /dev/tty; exit \${PIPESTATUS\[0\]}"
+        exec_nocap "zypper $arguments"
     } else {
-        bash "zypper --color $arguments | tee /dev/tty; exit \${PIPESTATUS\[0\]}"
+        exec_nocap "zypper --color $arguments"
     }
     # re-run zypper with sudo if exit is 5
     if {$::err == 5} {
         if {$::useColors == "false"} {
-            bash "sudo zypper $arguments | tee /dev/tty; exit \${PIPESTATUS\[0\]}"
+            exec_nocap "sudo zypper $arguments"
         } else {
-            bash "sudo zypper --color $arguments | tee /dev/tty; exit \${PIPESTATUS\[0\]}"
+            exec_nocap "sudo zypper --color $arguments"
         }
     }
     # ouput stderr if exit code is not 0
-    if {$::err != 0 && [string last {child process exited abnormally} $::stderr] == -1} {
+    if {$::err != 0} {
         puts stderr $::stderr
     }
 }
@@ -160,7 +176,7 @@ proc zypper_search {repos package} {
 # proc that handles package search through zypper
 proc zypper_search_local {arguments} {
     # run zypper search
-    bash "zypper --no-refresh --xmlout search $arguments"
+    exec_cap "zypper --no-refresh --xmlout search $arguments"
     # trim xml just in case
     set zypper_results [string trim $::stdout]
     # use tdom to parse xml
@@ -319,17 +335,15 @@ proc zypper_search_obs {type arguments} {
 switch -exact -- [lindex $argv 0] {
     ch -
     changes { ;# use rpm to show changes file
-        bash "rpm -q --changes [lrange $argv 1 end]"
-        puts $::stdout
-        if {$::err != 0 && [string last {child process exited abnormally} $::stderr] == -1} {
+        exec_nocap "rpm -q --changes [lrange $argv 1 end]"
+        if {$::err != 0} {
             puts stderr $::stderr
         }
     }
     lf -
     list-files { ;# use rpm to list files in package
-        bash "rpm -q --filesbypkg [lrange $argv 1 end]"
-        puts $::stdout
-        if {$::err != 0 && [string last {child process exited abnormally} $::stderr] == -1} {
+        exec_nocap "rpm -q --filesbypkg [lrange $argv 1 end]"
+        if {$::err != 0} {
             puts stderr $::stderr
         }
     }
