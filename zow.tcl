@@ -13,7 +13,7 @@ package require cmdline
 http::register https 443 [list ::tls::socket -autoservername true]
 
 # set version
-set version "0.2.00"
+set version "0.2.01"
 
 # proc that uses tput to set colors
 proc color {foreground text} {
@@ -263,11 +263,7 @@ proc zypper_search_obs {type arguments} {
     # set URL to opi proxy
     set opi_proxy {https://opi-proxy.opensuse.org/?obs_api_link=}
     # output heading if $type is search
-    if {$type == "search"} {
-        puts "[color $::msgWarning "OBS search results:"]\n"
-    } else {
-        puts "[color $::msgWarning "Searching OBS repos..."]\n"
-    }
+    puts "[color $::prompt [color $::msgWarning "Searching OBS repos..."]]"
     # loop through $packages
     foreach package $packages {
         # set query based on if -x or --match-exact flag used
@@ -315,6 +311,7 @@ proc zypper_search_obs {type arguments} {
             }
         }
         # output results based on $type
+        puts "OBS search results:\n"
         if {$type != "search"} {
             return $binary_list
         } else {
@@ -371,21 +368,26 @@ proc zypper_install_obs {packages} {
             } else {
                 set bin_num $opt_num
             }
+            # output each result
             puts "$bin_num) [color $::change [$binary getAttribute project]] |\
             [$binary getAttribute version]-[$binary getAttribute release]"
         }
+        # add cancel option
         if {$list_length > 8} {
             puts " C) Cancel\n"    
         } else {
             puts "C) Cancel\n"
         }
-        puts -nonewline "Choose an OBS repo to install '[color $::prompt [color $::highlight $package]]' from and press ENTER: "
+        # output prompt and wait for input
+        puts -nonewline "[color $::prompt "Choose an OBS repo to install '[color $::highlight $package]"][color $::prompt {' from and press ENTER:}] "
         flush stdout
         gets stdin input
+        # check input
         if {[catch {incr input -1} iner] != 0 || $input > $list_length || $input < 0} {
             puts "Invalid choice.  Nothing to do."
             exit 4
         }
+        # add repo and install package
         set result [lindex $binary_list $input]
         set repo [$result getAttribute project]
         set repo_alias [regsub -all {:} $repo {_}]
