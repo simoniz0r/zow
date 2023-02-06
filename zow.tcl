@@ -150,7 +150,7 @@ proc zypper {arguments} {
         }
     }
     # ouput stderr if exit code is not 0
-    if {$::err != 0} {
+    if {$::err != 0 && $::stderr != "child process exited abnormally"} {
         puts stderr $::stderr
     }
 }
