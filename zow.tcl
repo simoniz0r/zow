@@ -13,7 +13,7 @@ package require cmdline
 http::register https 443 [list ::tls::socket -autoservername true]
 
 # set version
-set version "0.1.02"
+set version "0.2.00"
 
 # proc that uses tput to set colors
 proc color {foreground text} {
@@ -156,19 +156,19 @@ proc zypper {arguments} {
 }
 
 # proc that decides which searches to run
-proc zypper_search {repos package} {
+proc zypper_search {repos packages} {
     # get colors for output
     color_config {/etc/zypp/zypper.conf}
     switch -exact -- $repos {
-        all { ;# both OBS and local repos
-            zypper_search_local "$package"
-            zypper_search_obs "search" "$package"
+        all { ;# both local and OBS repos
+            zypper_search_local "$packages"
+            zypper_search_obs "search" "$packages"
         }
         obs { ;# only OBS repos
-            zypper_search_obs "search" "$package"
+            zypper_search_obs "search" "$packages"
         }
         local { ;# only local repos
-            zypper_search_local "$package"
+            zypper_search_local "$packages"
         }
     }
 }
@@ -265,11 +265,13 @@ proc zypper_search_obs {type arguments} {
     # output heading if $type is search
     if {$type == "search"} {
         puts "[color $::msgWarning "OBS search results:"]\n"
+    } else {
+        puts "[color $::msgWarning "Searching OBS repos..."]\n"
     }
     # loop through $packages
     foreach package $packages {
         # set query based on if -x or --match-exact flag used
-        if {$exact == 1} {
+        if {$type == "install" || $exact == 1} {
             set query "%2540name%253D%2527$package%2527"
         } else {
             set query "contains-ic%2528%2540name%252C%2B%2527$package%2527%2529"
@@ -290,8 +292,9 @@ proc zypper_search_obs {type arguments} {
         set collection [$xml selectNodes {/collection}]
         set matches [$collection getAttribute {matches}]
         if {$matches == 0} {
-            if {$type != "search"} {
-                return {}
+            if {$type == "install"} {
+                puts stderr [color $::msgError "No provider of '$package' found."]
+                exit 104
             } else {
                 puts {No matching items found.}
                 exit 104
@@ -331,6 +334,73 @@ proc zypper_search_obs {type arguments} {
     }
 }
 
+# proc that decides which repos to install from
+proc zypper_install {repos packages} {
+    # get colors for output
+    color_config {/etc/zypp/zypper.conf}
+    switch -exact -- $repos {
+        all { ;# both local and OBS repos
+            zypper "install [join $packages " "]"
+            if {$::err == 104} {
+                zypper_install_obs "$packages"
+            }
+        }
+        obs { ;# only OBS repos
+            zypper_install_obs "$packages"
+        }
+        local { ;# only local repos
+            zypper "install [join $packages " "]"
+        }
+    }
+}
+
+# proc to install packages from OBS repos
+proc zypper_install_obs {packages} {
+    # loop through $packages
+    foreach package $packages {
+        set binary_list [zypper_search_obs "install" "$package"]
+        # loop through results
+        set opt_num 0
+        set list_length [llength $binary_list]
+        incr list_length -1
+        foreach binary $binary_list {
+            incr opt_num
+            # set padding
+            if {$opt_num < 10 && $list_length > 8} {
+                set bin_num " $opt_num"
+            } else {
+                set bin_num $opt_num
+            }
+            puts "$bin_num) [color $::change [$binary getAttribute project]] |\
+            [$binary getAttribute version]-[$binary getAttribute release]"
+        }
+        if {$list_length > 8} {
+            puts " C) Cancel\n"    
+        } else {
+            puts "C) Cancel\n"
+        }
+        puts -nonewline "Choose an OBS repo to install '[color $::prompt [color $::highlight $package]]' from and press ENTER: "
+        flush stdout
+        gets stdin input
+        if {[catch {incr input -1} iner] != 0 || $input > $list_length || $input < 0} {
+            puts "Invalid choice.  Nothing to do."
+            exit 4
+        }
+        set result [lindex $binary_list $input]
+        set repo [$result getAttribute project]
+        set repo_alias [regsub -all {:} $repo {_}]
+        zypper "ar -f -p 100 obs://$repo $repo_alias"
+        if {$::err != 0} {
+            exit $::err
+        }
+        zypper "ref"
+        if {$::err != 0} {
+            exit $::err
+        }
+        zypper "install --from $repo_alias $package"
+    }
+}
+
 # detect input
 switch -exact -- [lindex $argv 0] {
     ch -
@@ -348,16 +418,28 @@ switch -exact -- [lindex $argv 0] {
         }
     }
     lse -
-    local-search { ;# package search with only local repos
+    local-search { ;# package search from local repos only
         zypper_search "local" "[lrange $argv 1 end]"
     }
     ose -
-    obs-search { ;# OBS package search only
+    obs-search { ;# package search from OBS repos only
         zypper_search "obs" "[lrange $argv 1 end]"
     }
     se -
-    search { ;# package search both OBS and local repos
+    search { ;# package search from local and OBS repos
         zypper_search "all" "[lrange $argv 1 end]"
+    }
+    lin -
+    local-install { ;# package install with local repos only
+        zypper_install "local" "[lrange $argv 1 end]"
+    }
+    oin -
+    obs-install { ;# package install from OBS repos only
+        zypper_install "obs" "[lrange $argv 1 end]"
+    }
+    in -
+    install { ;# package install from local and OBS repos
+        zypper_install "all" "[lrange $argv 1 end]"
     }
     if -
     info -
