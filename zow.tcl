@@ -101,10 +101,13 @@ proc exec_cap {command} {
     set ::stderr {}
     set ::stdout {}
     # run command and catch any non-zero exit
-    if {[catch {exec -keepnewline -- {*}$command} output] != 0} {
-        global errorCode
-        # ::err is exit code
-        set ::err [lindex $errorCode end]
+    if {[catch {exec -keepnewline -- {*}$command} output options] != 0} {
+        # get errorcode from options dict
+        set errorcode [dict get $options -errorcode]
+        # if first entry in errorcode is CHILDSTATUS set ::err to third entry
+        if {[lindex $errorcode 0] == "CHILDSTATUS"} {
+            set ::err [lindex $errorcode 2]
+        }
         # ::stderr is last line of output
         set ::stderr [lindex [split $output "\n"] end]
         # ::stdout is all lines except last of output
@@ -122,10 +125,13 @@ proc exec_nocap {command} {
     set ::stderr {}
     chan configure stdout -buffering none
     # run command and catch any non-zero exit
-    if {[catch {exec -keepnewline -- >@stdout {*}$command} output] != 0} {
-        global errorCode
-        # ::err is exit code
-        set ::err [lindex $errorCode end]
+    if {[catch {exec -keepnewline -- >@stdout {*}$command} output options] != 0} {
+        # get errorcode from options dict
+        set errorcode [dict get $options -errorcode]
+        # if first entry in errorcode is CHILDSTATUS set ::err to third entry
+        if {[lindex $errorcode 0] == "CHILDSTATUS"} {
+            set ::err [lindex $errorcode 2]
+        }
         # ::stderr is output
         set ::stderr $output
     }
@@ -206,7 +212,9 @@ proc zypper_search_local {arguments} {
         }
         # output result, formatting depends on if summary attribute exists in result
         if {[catch {$result getAttribute summary}] == 0} {
-            puts "[color $::prompt [color $nameColor [$result getAttribute name]]] | [$result getAttribute kind] | [color $statusColor [$result getAttribute status]]"
+            puts "[color $::prompt [color $nameColor [$result getAttribute name]]] |\
+            [$result getAttribute kind] |\
+            [color $statusColor [$result getAttribute status]]"
             puts "    [$result getAttribute summary]\n"
         } else {
             puts "[color $::prompt [color $nameColor [$result getAttribute name]]] |\
