@@ -13,7 +13,7 @@ package require cmdline
 http::register https 443 [list ::tls::socket -autoservername true]
 
 # set version
-set version "0.2.03"
+set version "0.2.02"
 
 # proc that uses ANSI escapes to set colors
 proc color {foreground text} {
