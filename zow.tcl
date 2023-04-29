@@ -55,12 +55,12 @@ proc color_config {path} {
         set fileID [open $path]
         set file [read $fileID]
         # get useColors config option from file
-        set ::useColors [lindex [split [lindex [regexp -inline -line -- {useColors\s=\s\w+} $file] 0] { }] 2]
+        set useColors [lindex [split [lindex [regexp -inline -line -- {useColors\s=\s\w+} $file] 0] { }] 2]
         # if not found, set to false
-        if {$::useColors == {}} {
-            set ::useColors false
+        if {$useColors == {}} {
+            set useColors false
         }
-        if {$::useColors != "false"} {
+        if {$useColors != "false"} {
             # get colors from config file if useColors is not false
             set msgError [color_parse [lindex [split [lindex [regexp -inline -line -- {msgError\s=\s\w+} $file] 0] { }] 2]]
             set msgWarning [color_parse [lindex [split [lindex [regexp -inline -line -- {msgWarning\s=\s\w+} $file] 0] { }] 2]]
