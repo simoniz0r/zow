@@ -13,7 +13,7 @@ package require cmdline
 http::register https 443 [list ::tls::socket -autoservername true]
 
 # set version
-set version "0.2.01"
+set version "0.2.03"
 
 # proc that uses tput to set colors
 proc color {foreground text} {
@@ -43,13 +43,15 @@ proc color_parse {color} {
 
 # proc that gets color config
 proc color_config {path} {
+    # set necessary vars as global
+    global msgError msgWarning highlight positive change prompt
     # set default colors
-    set ::msgError 7
-    set ::msgWarning 7
-    set ::highlight 7
-    set ::positive 7
-    set ::change 7
-    set ::prompt 7
+    set msgError 7
+    set msgWarning 7
+    set highlight 7
+    set positive 7
+    set change 7
+    set prompt 7
     # catch error when opening
     if {[catch {open $path}] == 0} {
         # open and read config file
@@ -63,12 +65,12 @@ proc color_config {path} {
         }
         if {$::useColors != "false"} {
             # get colors from config file if useColors is not false
-            set ::msgError [color_parse [lindex [split [lindex [regexp -inline -line -- {msgError\s=\s\w+} $file] 0] { }] 2]]
-            set ::msgWarning [color_parse [lindex [split [lindex [regexp -inline -line -- {msgWarning\s=\s\w+} $file] 0] { }] 2]]
-            set ::highlight [color_parse [lindex [split [lindex [regexp -inline -line -- {highlight\s=\s\w+} $file] 0] { }] 2]]
-            set ::positive [color_parse [lindex [split [lindex [regexp -inline -line -- {positive\s=\s\w+} $file] 0] { }] 2]]
-            set ::change [color_parse [lindex [split [lindex [regexp -inline -line -- {change\s=\s\w+} $file] 0] { }] 2]]
-            set ::prompt [color_parse [lindex [split [lindex [regexp -inline -line -- {prompt\s=\s\w+} $file] 0] { }] 2]]
+            set msgError [color_parse [lindex [split [lindex [regexp -inline -line -- {msgError\s=\s\w+} $file] 0] { }] 2]]
+            set msgWarning [color_parse [lindex [split [lindex [regexp -inline -line -- {msgWarning\s=\s\w+} $file] 0] { }] 2]]
+            set highlight [color_parse [lindex [split [lindex [regexp -inline -line -- {highlight\s=\s\w+} $file] 0] { }] 2]]
+            set positive [color_parse [lindex [split [lindex [regexp -inline -line -- {positive\s=\s\w+} $file] 0] { }] 2]]
+            set change [color_parse [lindex [split [lindex [regexp -inline -line -- {change\s=\s\w+} $file] 0] { }] 2]]
+            set prompt [color_parse [lindex [split [lindex [regexp -inline -line -- {prompt\s=\s\w+} $file] 0] { }] 2]]
         }
     }
 }
@@ -96,68 +98,64 @@ proc flag_separator {arguments} {
 
 # proc that runs commands and captures stdout
 proc exec_cap {command} {
+    # set necessary vars as global
+    global exitcode stderr stdout
     # set default values
-    set ::err 0
-    set ::stderr {}
-    set ::stdout {}
+    set exitcode 0
+    set stderr {}
+    set stdout {}
     # run command and catch any non-zero exit
     if {[catch {exec -keepnewline -- {*}$command} output options] != 0} {
         # get errorcode from options dict
         set errorcode [dict get $options -errorcode]
-        # if first entry in errorcode is CHILDSTATUS set ::err to third entry
+        # if first entry in errorcode is CHILDSTATUS set exitcode to third entry
         if {[lindex $errorcode 0] == "CHILDSTATUS"} {
-            set ::err [lindex $errorcode 2]
+            set exitcode [lindex $errorcode 2]
         }
-        # ::stderr is last line of output
-        set ::stderr [lindex [split $output "\n"] end]
-        # ::stdout is all lines except last of output
-        set ::stdout [join [lrange [split $output "\n"] 0 end-1] "\n"]
+        # stderr is last line of output
+        set stderr [lindex [split $output "\n"] end]
+        # stdout is all lines except last of output
+        set stdout [join [lrange [split $output "\n"] 0 end-1] "\n"]
     } else {
-        # ::stdout is output
-        set ::stdout $output
+        # stdout is output
+        set stdout $output
     }
 }
 
 # proc that runs commands and sends stdout directly to terminal instead of capturing it
 proc exec_nocap {command} {
+    # set necessary vars as global
+    global exitcode stderr
     # set default values
-    set ::err 0
-    set ::stderr {}
+    set exitcode 0
+    set stderr {}
     chan configure stdout -buffering none
     # run command and catch any non-zero exit
     if {[catch {exec -keepnewline -- >@stdout {*}$command} output options] != 0} {
         # get errorcode from options dict
         set errorcode [dict get $options -errorcode]
-        # if first entry in errorcode is CHILDSTATUS set ::err to third entry
+        # if first entry in errorcode is CHILDSTATUS set exitcode to third entry
         if {[lindex $errorcode 0] == "CHILDSTATUS"} {
-            set ::err [lindex $errorcode 2]
+            set exitcode [lindex $errorcode 2]
         }
-        # ::stderr is output
-        set ::stderr $output
+        # stderr is output
+        set stderr $output
     }
 }
 
 # proc that handles all generic zypper calls
 proc zypper {arguments} {
+    # set necessary vars as global
+    global exitcode stderr
     # run zypper through exec_nocap proc
-    # check if colors should be used
-    color_config {/etc/zypp/zypper.conf}
-    if {$::useColors == "false"} {
-        exec_nocap "zypper $arguments"
-    } else {
-        exec_nocap "zypper --color $arguments"
-    }
+    exec_nocap "zypper $arguments"
     # re-run zypper with sudo if exit is 5
-    if {$::err == 5} {
-        if {$::useColors == "false"} {
-            exec_nocap "sudo zypper $arguments"
-        } else {
-            exec_nocap "sudo zypper --color $arguments"
-        }
+    if {$exitcode == 5} {
+        exec_nocap "sudo zypper $arguments"
     }
     # ouput stderr if exit code is not 0
-    if {$::err != 0 && $::stderr != "child process exited abnormally"} {
-        puts stderr $::stderr
+    if {$exitcode != 0 && $stderr != "child process exited abnormally"} {
+        puts stderr $stderr
     }
 }
 
@@ -181,10 +179,12 @@ proc zypper_search {repos packages} {
 
 # proc that handles package search through zypper
 proc zypper_search_local {arguments} {
+    # set necessary vars as global
+    global stdout msgError msgWarning highlight positive change prompt
     # run zypper search
     exec_cap "zypper --no-refresh --xmlout search $arguments"
     # trim xml just in case
-    set zypper_results [string trim $::stdout]
+    set zypper_results [string trim $stdout]
     # use tdom to parse xml
     set xml [rest::format_tdom $zypper_results]
     # get messages from xml
@@ -201,24 +201,24 @@ proc zypper_search_local {arguments} {
     foreach result $results {
         # set colors based on status attribute
         if {[$result getAttribute status] == "installed"} {
-            set nameColor $::positive
-            set statusColor $::positive
+            set nameColor $positive
+            set statusColor $positive
         } elseif {[$result getAttribute status] == "other-version"} {
-            set nameColor $::highlight
-            set statusColor $::msgWarning
+            set nameColor $highlight
+            set statusColor $msgWarning
         } else {
-            set nameColor $::highlight
+            set nameColor $highlight
             set statusColor 8
         }
         # output result, formatting depends on if summary attribute exists in result
         if {[catch {$result getAttribute summary}] == 0} {
-            puts "[color $::prompt [color $nameColor [$result getAttribute name]]] |\
+            puts "[color $prompt [color $nameColor [$result getAttribute name]]] |\
             [$result getAttribute kind] |\
             [color $statusColor [$result getAttribute status]]"
             puts "    [$result getAttribute summary]\n"
         } else {
-            puts "[color $::prompt [color $nameColor [$result getAttribute name]]] |\
-            [color $::change [$result getAttribute repository]] |\
+            puts "[color $prompt [color $nameColor [$result getAttribute name]]] |\
+            [color $change [$result getAttribute repository]] |\
             [$result getAttribute edition] |\
             [$result getAttribute arch] |\
             [$result getAttribute kind] |\
@@ -229,6 +229,8 @@ proc zypper_search_local {arguments} {
 
 # proc that handles searching OBS repos
 proc zypper_search_obs {type arguments} {
+    # set necessary vars as global
+    global msgError msgWarning highlight positive change prompt
     # separate any short flags in arguments so cmdline can parse them
     set args [flag_separator "$arguments"]
     # create flags and usage for cmdline
@@ -263,7 +265,7 @@ proc zypper_search_obs {type arguments} {
     }
     # get openSUSE version from /etc/products.d/baseproduct
     if {[catch {set baseproduct_id [open /etc/products.d/baseproduct]}] != 0} {
-        puts stderr [color $::msgError "Error opening {/etc/products.d/baseproduct}"]
+        puts stderr [color $msgError "Error opening {/etc/products.d/baseproduct}"]
         exit 1
     }
     set baseproduct [rest::format_tdom [read $baseproduct_id]]
@@ -271,7 +273,7 @@ proc zypper_search_obs {type arguments} {
     # set URL to opi proxy
     set opi_proxy {https://opi-proxy.opensuse.org/?obs_api_link=}
     # output heading if $type is search
-    puts "[color $::prompt [color $::msgWarning "Searching OBS repos..."]]"
+    puts "[color $prompt [color $msgWarning "Searching OBS repos..."]]"
     # loop through $packages
     foreach package $packages {
         # set query based on if -x or --match-exact flag used
@@ -287,7 +289,7 @@ proc zypper_search_obs {type arguments} {
         # use rest to get results from $full_url
         if {[catch {set obs_results [rest::get $full_url {}]}] != 0} {
             # failed to get results from API, exit
-            puts stderr [color $::msgError "Failed to get search results from $full_url."]
+            puts stderr [color $msgError "Failed to get search results from $full_url."]
             exit 1
         }
         # use tdom to parse xml
@@ -297,14 +299,14 @@ proc zypper_search_obs {type arguments} {
         set matches [$collection getAttribute {matches}]
         if {$matches == 0} {
             if {$type == "install"} {
-                puts stderr [color $::msgError "No provider of '$package' found."]
+                puts stderr [color $msgError "No provider of '$package' found."]
                 exit 104
             } else {
                 puts {No matching items found.}
                 exit 104
             }
         }
-        set ::err 0
+        set exitcode 0
         # get machine architecture
         set system_arch [exec uname -m]
         # get list of binary results from xml
@@ -324,8 +326,8 @@ proc zypper_search_obs {type arguments} {
             return $binary_list
         } else {
             foreach binary $binary_list {
-                puts "[color $::prompt [color $::highlight [$binary getAttribute name]]] |\
-                [color $::change [$binary getAttribute project]] |\
+                puts "[color $prompt [color $highlight [$binary getAttribute name]]] |\
+                [color $change [$binary getAttribute project]] |\
                 [$binary getAttribute version]-[$binary getAttribute release] |\
                 [$binary getAttribute arch]"
                 # only output OBS project link if $detailed is not 1
@@ -346,7 +348,7 @@ proc zypper_install {repos packages} {
     switch -exact -- $repos {
         all { ;# both local and OBS repos
             zypper "install [join $packages " "]"
-            if {$::err == 104} {
+            if {$exitcode == 104} {
                 zypper_install_obs "$packages"
             }
         }
@@ -361,6 +363,8 @@ proc zypper_install {repos packages} {
 
 # proc to install packages from OBS repos
 proc zypper_install_obs {packages} {
+    # set necessary vars as global
+    global msgError msgWarning highlight positive change prompt
     # loop through $packages
     foreach package $packages {
         set binary_list [zypper_search_obs "install" "$package"]
@@ -377,7 +381,7 @@ proc zypper_install_obs {packages} {
                 set bin_num $opt_num
             }
             # output each result
-            puts "$bin_num) [color $::change [$binary getAttribute project]] |\
+            puts "$bin_num) [color $change [$binary getAttribute project]] |\
             [$binary getAttribute version]-[$binary getAttribute release]"
         }
         # add cancel option
@@ -387,7 +391,7 @@ proc zypper_install_obs {packages} {
             puts "C) Cancel\n"
         }
         # output prompt and wait for input
-        puts -nonewline "[color $::prompt "Choose an OBS repo to install '[color $::highlight $package]"][color $::prompt {' from and press ENTER:}] "
+        puts -nonewline "[color $prompt "Choose an OBS repo to install '[color $highlight $package]"][color $prompt {' from and press ENTER:}] "
         flush stdout
         gets stdin input
         # check input
@@ -400,12 +404,12 @@ proc zypper_install_obs {packages} {
         set repo [$result getAttribute project]
         set repo_alias [regsub -all {:} $repo {_}]
         zypper "ar -f -p 100 obs://$repo $repo_alias"
-        if {$::err != 0} {
-            exit $::err
+        if {$exitcode != 0} {
+            exit $exitcode
         }
         zypper "ref"
-        if {$::err != 0} {
-            exit $::err
+        if {$exitcode != 0} {
+            exit $exitcode
         }
         zypper "install --from $repo_alias $package"
     }
@@ -416,15 +420,15 @@ switch -exact -- [lindex $argv 0] {
     ch -
     changes { ;# use rpm to show changes file
         exec_nocap "rpm -q --changes [lrange $argv 1 end]"
-        if {$::err != 0} {
-            puts stderr $::stderr
+        if {$exitcode != 0} {
+            puts stderr $stderr
         }
     }
     lf -
     list-files { ;# use rpm to list files in package
         exec_nocap "rpm -q --filesbypkg [lrange $argv 1 end]"
-        if {$::err != 0} {
-            puts stderr $::stderr
+        if {$exitcode != 0} {
+            puts stderr $stderr
         }
     }
     lse -
@@ -463,4 +467,4 @@ switch -exact -- [lindex $argv 0] {
 }
 
 # exit with exit code from zypper
-exit $::err
+exit $exitcode
