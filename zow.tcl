@@ -15,12 +15,12 @@ http::register https 443 [list ::tls::socket -autoservername true]
 # set version
 set version "0.2.03"
 
-# proc that uses ASCII escapes to set colors
+# proc that uses ANSI escapes to set colors
 proc color {foreground text} {
     return "\033\[${foreground}m$text\033\[0m"
 }
 
-# proc that parses named colors into ASCII escape codes
+# proc that parses named colors into ANSI escape codes
 proc color_parse {color} {
     switch -exact $color {
         red {return 31}
