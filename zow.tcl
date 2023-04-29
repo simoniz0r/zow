@@ -15,29 +15,26 @@ http::register https 443 [list ::tls::socket -autoservername true]
 # set version
 set version "0.2.03"
 
-# proc that uses tput to set colors
+# proc that uses ASCII escapes to set colors
 proc color {foreground text} {
-    switch -glob -- $foreground {
-        *b {return [exec tput bold][exec tput setaf [lindex [split $foreground "b"] 0]]$text[exec tput sgr0]}
-        default {return [exec tput setaf $foreground]$text[exec tput sgr0]}
-    }
+    return "\033\[${foreground}m$text\033\[0m"
 }
 
-# proc that parses named colors into numbers
+# proc that parses named colors into ASCII escape codes
 proc color_parse {color} {
     switch -exact $color {
-        red {return 1}
-        green {return 2}
+        red {return 31}
+        green {return 32}
         brown -
-        yellow {return 3}
-        blue {return 4}
+        yellow {return 33}
+        blue {return 34}
         purple -
-        magenta {return 5}
-        cyan {return 6}
-        gray {return 8}
-        bold {return 7b}
+        magenta {return 35}
+        cyan {return 36}
+        gray {return 38}
+        bold {return 1}
         white -
-        default {return 7}
+        default {return 37}
     }
 }
 
@@ -46,12 +43,12 @@ proc color_config {path} {
     # set necessary vars as global
     global msgError msgWarning highlight positive change prompt
     # set default colors
-    set msgError 7
-    set msgWarning 7
-    set highlight 7
-    set positive 7
-    set change 7
-    set prompt 7
+    set msgError 37
+    set msgWarning 37
+    set highlight 37
+    set positive 37
+    set change 37
+    set prompt 37
     # catch error when opening
     if {[catch {open $path}] == 0} {
         # open and read config file
