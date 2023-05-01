@@ -13,7 +13,7 @@ package require cmdline
 http::register https 443 [list ::tls::socket -autoservername true]
 
 # set version
-set version "0.2.05"
+set version "0.2.06"
 
 # proc that uses ANSI escapes to set colors
 proc color {foreground text} {
@@ -205,7 +205,7 @@ proc zypper_search_local {arguments} {
             set statusColor $msgWarning
         } else {
             set nameColor $highlight
-            set statusColor 8
+            set statusColor 90
         }
         # output result, formatting depends on if summary attribute exists in result
         if {[catch {$result getAttribute summary}] == 0} {
