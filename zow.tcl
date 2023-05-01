@@ -13,7 +13,7 @@ package require cmdline
 http::register https 443 [list ::tls::socket -autoservername true]
 
 # set version
-set version "0.2.03"
+set version "0.2.04"
 
 # proc that uses ANSI escapes to set colors
 proc color {foreground text} {
@@ -177,7 +177,7 @@ proc zypper_search {repos packages} {
 # proc that handles package search through zypper
 proc zypper_search_local {arguments} {
     # set necessary vars as global
-    global stdout msgError msgWarning highlight positive change prompt
+    global stdout exitcode msgError msgWarning highlight positive change prompt
     # run zypper search
     exec_cap "zypper --no-refresh --xmlout search $arguments"
     # trim xml just in case
@@ -227,7 +227,7 @@ proc zypper_search_local {arguments} {
 # proc that handles searching OBS repos
 proc zypper_search_obs {type arguments} {
     # set necessary vars as global
-    global msgError msgWarning highlight positive change prompt
+    global exitcode msgError msgWarning highlight positive change prompt
     # separate any short flags in arguments so cmdline can parse them
     set args [flag_separator "$arguments"]
     # create flags and usage for cmdline
@@ -361,7 +361,7 @@ proc zypper_install {repos packages} {
 # proc to install packages from OBS repos
 proc zypper_install_obs {packages} {
     # set necessary vars as global
-    global msgError msgWarning highlight positive change prompt
+    global exitcode msgError msgWarning highlight positive change prompt
     # loop through $packages
     foreach package $packages {
         set binary_list [zypper_search_obs "install" "$package"]
