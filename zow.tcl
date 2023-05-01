@@ -13,7 +13,7 @@ package require cmdline
 http::register https 443 [list ::tls::socket -autoservername true]
 
 # set version
-set version "0.2.06"
+set version "0.2.07"
 
 # proc that uses ANSI escapes to set colors
 proc color {foreground text} {
@@ -340,6 +340,8 @@ proc zypper_search_obs {type arguments} {
 
 # proc that decides which repos to install from
 proc zypper_install {repos packages} {
+    # set necessary vars as global
+    global exitcode
     # get colors for output
     color_config {/etc/zypp/zypper.conf}
     switch -exact -- $repos {
