@@ -13,7 +13,7 @@ package require cmdline
 http::register https 443 [list ::tls::socket -autoservername true]
 
 # set version
-set version "0.2.02"
+set version "0.2.03"
 
 # proc that uses ANSI escapes to set colors
 proc color {foreground text} {
@@ -412,6 +412,37 @@ proc zypper_install_obs {packages} {
     }
 }
 
+# proc to output help
+proc zow_help {arguments} {
+    # set necessary vars as global
+    global exitcode stderr stdout
+    if {$arguments == ""} {
+        # add zow's help to zypper's help output if no arguments
+        exec_cap "zypper help"
+        # replace 'zypper' with 'zow'
+        set stdout [regsub -all {zypper } $stdout {zow }]
+        # replace 'Install packages.' with a '#' for easier splitting
+        set stdout [regsub {Install packages\.} $stdout {#}]
+        # replace 'Search...' with a '#' and split by '#'
+        set help_list [split [regsub {Search for packages matching a pattern\.} $stdout {#}] {#}]
+        # add zow's help to each split section
+        puts "[lindex $help_list 0]Install packages from local repos or OBS repos if not available in local."
+        puts "      local-install, lin    Install packages from local repos only."
+        puts -nonewline "      obs-install, oin      Install packages from OBS repos only."
+        puts "[lindex $help_list 1]Search for packages matching a pattern in local and OBS repos."
+        puts "      local-search, lse     Search for packages matching a pattern in local repos only."
+        puts "      obs-search, ose       Search for packages matching a pattern in OBS repos only."
+        puts "      changes, ch           Show RPM changes file for a package."
+        puts -nonewline "      list-files, lf        List installed files for a package."
+        puts [lindex $help_list 2]
+    } else {
+        # if arguments pass them along with 'help' to zypper proc
+        # TODO add specific help outputs for zow's arguments
+        zypper "help $arguments"
+    }
+}
+
+
 # detect input
 switch -exact -- [lindex $argv 0] {
     ch -
@@ -455,8 +486,13 @@ switch -exact -- [lindex $argv 0] {
     if -
     info -
     pa -
-    packages {
+    packages { ;# run these args with '--no-refresh' to save time
         zypper "--no-refresh $argv"
+    }
+    --help -
+    ? -
+    help { ;# output zow's help
+        zow_help "[lrange $argv 1 end]"
     }
     default { ;# any other arguments
         zypper "$argv"
