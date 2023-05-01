@@ -13,7 +13,7 @@ package require cmdline
 http::register https 443 [list ::tls::socket -autoservername true]
 
 # set version
-set version "0.2.04"
+set version "0.2.05"
 
 # proc that uses ANSI escapes to set colors
 proc color {foreground text} {
@@ -500,7 +500,11 @@ switch -exact -- [lindex $argv 0] {
         puts "zow $version"
     }
     default { ;# any other arguments
-        zypper "$argv"
+        if {[llength $argv] == 0} { ;# output zow's help if no arguments
+            zow_help ""
+        } else { ;# else run zypper proc with arguments
+            zypper "$argv"
+        }
     }
 }
 
