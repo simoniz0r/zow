@@ -494,6 +494,11 @@ switch -exact -- [lindex $argv 0] {
     help { ;# output zow's help
         zow_help "[lrange $argv 1 end]"
     }
+    -V -
+    --version { ;# output zypper's and zow's version
+        zypper "--version"
+        puts "zow $version"
+    }
     default { ;# any other arguments
         zypper "$argv"
     }
